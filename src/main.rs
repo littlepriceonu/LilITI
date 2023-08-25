@@ -220,6 +220,6 @@ fn main() {
 
     let song_info = player_controls.song_interface.get_song_info();
 
-    println!("\nYou're listening to {} by {}", song_info.name, song_info.artist);
+    println!("\n\nYou're listening to {} by {}", song_info.name, song_info.artist);
     println!("{} -- {}", song_info.formatted_progress, song_info.time);
 }
