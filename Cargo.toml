@@ -1,5 +1,7 @@
 [package]
 name = "lil_iti"
+description = "An iTunes COM rust interface"
+license = "MIT"
 version = "0.1.0"
 edition = "2021"
 
