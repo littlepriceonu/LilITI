@@ -51,9 +51,9 @@ mod itunes_interface {
                     album: String::new(),
                     artist: String::new(),
                     duration: 0,
-                    time: String::from("0:0"),
+                    time: String::from("0:00"),
                     progress: 0,
-                    formatted_progress: String::from("0:0"),
+                    formatted_progress: String::from("0:00"),
                 }
             }
 
