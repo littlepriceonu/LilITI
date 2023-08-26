@@ -8,13 +8,14 @@
 
 mod itunes_interface {
     use powershell_script::{PsScriptBuilder, PsScript};
+    use std::collections::HashMap;
 
     // are these lines even? no
     // do they look cool? yes
     //#region -----------------         TYPINGS       --------------------------
 
     pub struct SongInfo {
-        /// Name of the currently plalbuaying song
+        /// Name of the currently playing song
         pub name: String,
         /// Length (in seconds) of the currently playing song
         pub duration: u16,
@@ -55,26 +56,33 @@ mod itunes_interface {
                     formatted_progress: String::from("0:0"),
                 }
             }
-            
-            let progress = self.itunes.get_property("PlayerPosition").trim().parse::<u8>().unwrap();
+
+            let props = self.itunes.get_properties(vec!["PlayerPosition", "CurrentTrack.Name", "CurrentTrack.Album", "CurrentTrack.Artist", "CurrentTrack.Duration", "CurrentTrack.Time"]);
+
+            let progress = props.get("PlayerPosition").unwrap().parse::<u8>().unwrap();
 
             return SongInfo { 
-                name: self.itunes.get_property("CurrentTrack.Name"),
-                album: self.itunes.get_property("CurrentTrack.Album"),
-                artist: self.itunes.get_property("CurrentTrack.Artist"),
-                duration: self.itunes.get_property("CurrentTrack.Duration").trim().parse::<u16>().unwrap(),
-                time: self.itunes.get_property("CurrentTrack.Time"),
+                name: props.get("CurrentTrack.Name").unwrap().to_owned(),
+                album: props.get("CurrentTrack.Album").unwrap().to_owned(),
+                artist: props.get("CurrentTrack.Artist").unwrap().to_owned(),
+                duration: props.get("CurrentTrack.Duration").unwrap().trim().parse::<u16>().unwrap(),
+                time: props.get("CurrentTrack.Time").unwrap().to_owned(),
                 progress,
-                formatted_progress: self.format_progress(progress)
+                formatted_progress: self.format_m_s(progress)
             };
         }
 
-        pub fn format_progress(&self, progress: u8) -> String {
-            let mut x = progress/60;
+        /// Formats `seconds` into a Minutes:Seconds time format
+        pub fn format_m_s(&self, seconds: u8) -> String {
+            let mut x = seconds/60;
             // remove da decimal
             x = format!("{:.0}", x).parse().unwrap();
             
-            let y = progress - x * 60;
+            let y = seconds - x * 60;
+
+            if y < 10 {
+                return format!("{}:0{}", x,y);
+            }
 
             format!("{}:{}", x,y)
         }
@@ -159,6 +167,7 @@ mod itunes_interface {
         power_shell: PsScript,
         itunes_echo_script: &'a str,
         itunes_script: &'a str,
+        itunes_echo_multiple_script: &'a str
     }
     
     impl Itunes<'_> {
@@ -167,6 +176,7 @@ mod itunes_interface {
                 power_shell: PsScriptBuilder::new().non_interactive(true).hidden(true).no_profile(true).print_commands(false).build(),
                 itunes_echo_script: include_str!("./Powershell/itunesEcho.ps1"),
                 itunes_script: include_str!("./Powershell/itunes.ps1"),
+                itunes_echo_multiple_script: include_str!("./Powershell/itunesEchoMultiple.ps1"),
             }
         }
     
@@ -176,6 +186,16 @@ mod itunes_interface {
             }
     
             return self.itunes_script.replace("[INPUT]", prop)
+        }
+
+        fn compile_large_script(&self, props: &Vec<&str>) -> String {
+            let mut script_lines = String::new();
+
+            for (_, prop) in props.into_iter().enumerate() {
+                script_lines.push_str(format!("Write-Output $itunes.{}\n", prop).as_str())
+            }
+
+            return self.itunes_echo_multiple_script.replace("[INPUT]", &script_lines);
         }
     
         pub fn get_property(&self, prop: &str) -> String {
@@ -187,11 +207,22 @@ mod itunes_interface {
     
             return property.unwrap();
         }
+
+        pub fn get_properties(&self, props: Vec<&str>) -> HashMap<String, String> {
+            let mut properties: HashMap<String, String> = HashMap::new();
+            let returned_props = self.power_shell.run(self.compile_large_script(&props).as_str()).unwrap().stdout().unwrap();
+
+            for (i, prop) in returned_props.lines().into_iter().enumerate() {
+                properties.insert(props[i].to_string(), prop.to_string());
+            }
+
+            return properties
+        }
     
         pub fn property(&self, prop: &str) {
             self.power_shell.run(&self.compile_script(prop, false)).expect("Property To Execute");
         }
-        
+
         pub fn is_song_ready(&self) -> bool {
             let current_track = self.get_property("CurrentTrack");
 
@@ -209,17 +240,17 @@ mod itunes_interface {
 
 // a little example
 
-fn main() {
-    let itunes = itunes_interface::Itunes::new();
-    let player_controls = itunes_interface::ItunesPlayerControls::new(&itunes);
-
-    if !itunes.is_song_ready() {
-        println!("You're not listening to a song!");
-        return;
-    }
-
-    let song_info = player_controls.song_interface.get_song_info();
-
-    println!("\n\nYou're listening to {} by {}", song_info.name, song_info.artist);
-    println!("{} -- {}", song_info.formatted_progress, song_info.time);
-}
+// fn main() {
+//     let itunes = itunes_interface::Itunes::new();
+//     let player_controls = itunes_interface::ItunesPlayerControls::new(&itunes);
+//
+//     if !itunes.is_song_ready() {
+//         println!("You're not listening to a song!");
+//         return;
+//     }
+//
+//     let song_info = player_controls.song_interface.get_song_info();
+//
+//     println!("\n\nYou're listening to {}\n  by {}\n", song_info.name, song_info.artist);
+//     println!("0:00 -- {} -- {}", song_info.formatted_progress, song_info.time);
+// }
