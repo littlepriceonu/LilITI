@@ -6,7 +6,7 @@
 // * Extra stuff in the `SongInfo` struct, like if its downloaded, year and stuff like that
 //! * Implement a function in PlayerControls that lets you get *JUST* the duration and/or progress of the current song 
 
-mod itunes_interface {
+pub(crate) mod itunes_interface {
     use powershell_script::{PsScriptBuilder, PsScript};
     use std::collections::HashMap;
 
