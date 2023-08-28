@@ -199,18 +199,14 @@ pub mod itunes_interface {
         }
     
         pub fn get_property(&self, prop: &str) -> String {
-            let property = self.power_shell.run(&self.compile_script(prop, true)).unwrap().stdout();
-    
-            if property == None {
-                return String::new();
-            }
-    
-            return property.unwrap();
+            let property = self.power_shell.run(&self.compile_script(prop, true)).expect("Error running powershell script").stdout();
+
+            property.unwrap_or(String::from(""))
         }
 
         pub fn get_properties(&self, props: Vec<&str>) -> HashMap<String, String> {
             let mut properties: HashMap<String, String> = HashMap::new();
-            let returned_props = self.power_shell.run(self.compile_large_script(&props).as_str()).unwrap().stdout().unwrap();
+            let returned_props = self.power_shell.run(self.compile_large_script(&props).as_str()).expect("Error while running powershell script").stdout().unwrap();
 
             for (i, prop) in returned_props.lines().into_iter().enumerate() {
                 properties.insert(props[i].to_string(), prop.to_string());
@@ -220,7 +216,7 @@ pub mod itunes_interface {
         }
     
         pub fn property(&self, prop: &str) {
-            self.power_shell.run(&self.compile_script(prop, false)).expect("Property To Execute");
+            self.power_shell.run(&self.compile_script(prop, false)).expect("Error while running powershell script");
         }
 
         pub fn is_song_ready(&self) -> bool {
